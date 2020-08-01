@@ -19,16 +19,20 @@ getdir() {
 }
 
 
-startpwd="$PWD"
-getdir "$PWD/tscripts/" installdir
-if [ ! -d "$installdir" ]; then
-	input confirm "\"$installdir\" doesn't exist would you like to create it? (y/n) [y]:"
-	if [ "$confirm" = "n" ]; then
-		echo "No install dir exiting...";
-		exit 1;
+main() {
+	startpwd="$PWD"
+	getdir "$PWD/tscripts/" installdir
+	if [ ! -d "$installdir" ]; then
+		input confirm "\"$installdir\" doesn't exist would you like to create it? (y/n) [y]:"
+		if [ "$confirm" = "n" ]; then
+			echo "No install dir exiting...";
+			exit 1;
+		fi
+		mkdir -p "$installdir"
 	fi
-	mkdir -p "$installdir"
-fi
-echo "INSTALLDIR: $installdir"
-cd $installdir
-git clone "https://github.com/Douile/bash-scripts.git" .
+	echo "INSTALLDIR: $installdir"
+	cd $installdir
+	git clone "https://github.com/Douile/bash-scripts.git" .
+}
+
+main
