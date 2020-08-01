@@ -28,11 +28,17 @@ main() {
 			echo "No install dir exiting...";
 			exit 1;
 		fi
-		mkdir -p "$installdir"
+		mkdir -p "$installdir";
 	fi
-	echo "INSTALLDIR: $installdir"
-	cd $installdir
-	git clone "https://github.com/Douile/bash-scripts.git" .
+	echo "INSTALLDIR: $installdir";
+	cd $installdir;
+	git clone "https://github.com/Douile/bash-scripts.git" .;
+	if [ $? -eq 0 ]; then
+		./setup.sh;
+	else
+		echo "Error cloning exiting...";
+		exit 2;
+	fi
 }
 
 main
