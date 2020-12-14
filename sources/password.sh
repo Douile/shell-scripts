@@ -4,7 +4,7 @@ generatePassword() {
   local cChars
   cChars=${1:-32}
 
-  tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c "$cChars"
+  tr -dc ' -~' < /dev/urandom | head -c "$cChars"
 }
 
 checkPassword() {
