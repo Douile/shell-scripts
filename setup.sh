@@ -10,7 +10,7 @@ input() {
 
 input confirm "Would you like to create an auto-source file? (y/n) [y]:"
 if [ "$confirm" != "n" ]; then 
-	echo "#!/bin/bash\nopwd=\"\$PWD\"\ncd \"\$(dirname \"\$BASH_SOURCE\")\"\n\n" > "./source.sh"
+	echo -e "#!/bin/bash\nopwd=\"\$PWD\"\ncd \"\$(dirname \"\$BASH_SOURCE\")\"\n\n" > "./source.sh"
 	for file in $(find "./sources" -name "*.sh")
 	do
 		input confirm "Would you like to source \"$file\"? (y/n) [y]:"
