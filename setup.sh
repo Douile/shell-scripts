@@ -20,7 +20,7 @@ if [ "$confirm" != "n" ]; then
 		fi
 		echo "$cmd" >> "./source.sh";
 	done
-	echo "\ncd \"\$opwd\"" >> "./source.sh";
+	echo -e "\ncd \"\$opwd\"" >> "./source.sh";
 	chmod u+x "./source.sh";
 	if [ -f "$HOME/.bashrc" ]; then
 		echo "BashRC detected";
