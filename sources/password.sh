@@ -23,8 +23,8 @@ generateAndCheckPassword() {
   echo "$pass"
   occ="$(checkPassword "$pass")"
   if [[ -z "$occ" ]]; then
-    echo "No occurences"
+    echo "No occurences" 1>&2
   else
-    echo "$occ occurences"
+    echo "$occ occurences" 1>&2
   fi
 }
