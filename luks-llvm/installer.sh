@@ -28,31 +28,26 @@ confirm "Use disk $DISK? (YES to continue) " "YES"
 
 fdisk -l "$DISK"
 echo "Create disk partitions"
+echo "For encrypted GRUB, LUKS + LVM create 3 partitions"
+echo "1MB (boot patition)"
+echo "500MB (fat32 efi partition)"
+echo "Remainder (luks + lvm)"
 fdisk "$DISK"
-# g
-# n
-# 1
-#
-# +512M
-# t
-# 4
-# n
-# 2
-#
-#
-# w
 
 echo "Setup partitions and mount"
-echo "cryptsetup luksFormat --type=luks1 ${DISK}2"
-echo "cryptsetup open ${DISK}2 cryptlvm"
+cat << EOF > /usr/bin/parthelp
+#!/bin/sh
+echo "cryptsetup luksFormat --type=luks1 ${DISK}3"
+echo "cryptsetup open ${DISK}3 cryptlvm"
 echo "pvcreate /dev/mapper/cryptlvm"
 echo "vgcreate Volumes /dev/mapper/cryptlvm"
 echo "lvcreate -L 8G Volumes -n swap"
 echo "lvcreate -l 100%FREE Volumes -n root"
-echo "mkfs.fat -F32 ${DISK}1"
+echo "mkfs.fat -F32 ${DISK}2"
 echo "mkfs.btrfs /dev/Volumes/root"
 echo "mkswap /dev/Volumes/swap"
-echo "== OPTIONAL SUBVOLUMES for snapper =="
+echo "== OPTIONAL SUBVOLUMES for snapper ('setupbtrfs ROOT SWAP' for auto) =="
+echo "== Leave mounted when continuing =="
 echo "mount /dev/Volumes/root /mnt"
 echo "cd /mnt"
 echo "btrfs subvolume create @"
@@ -73,6 +68,52 @@ echo "mkdir -p /mnt/var/cache/pacman/pkg"
 echo "mount -o subvol=@pc-cache /dev/Volumes/root /mnt/var/cache/pacman/pkg"
 echo "mkdir -p /mnt/tmp"
 echo "mount -t tmpfs tmpfs /mnt/tmp"
+echo "swapon /dev/Volumes/swap"
+echo "mkdir -p /mnt/efi"
+echo "mount ${DISK}2 /mnt/efi"
+EOF
+chmod +x /usr/bin/parthelp
+cat << EOF > /usr/bin/setupbtrfs
+#!/bin/sh
+
+set -eux
+
+ROOT=\$1
+SWAP=\$2
+if [ ! -b \$ROOT ]; then
+  echo "\$ROOT Doesn't exist"
+  exit 1
+fi
+mount \$ROOT /mnt
+cd /mnt
+btrfs subvolume create @
+btrfs subvolume create @snapshots
+btrfs subvolume create @home
+btrfs subvolume create @logs
+btrfs subvolume create @pc-cache
+cd /
+umount /mnt
+mount -o subvol=@ \$ROOT /mnt
+mkdir -p /mnt/.snapshots
+mount -o subvol=@snapshots \$ROOT /mnt/.snapshots
+mkdir -p /mnt/home
+mount -o subvol=@home \$ROOT /mnt/home
+mkdir -p /mnt/var/log
+mount -o subvol=@logs \$ROOT /mnt/var/log
+mkdir -p /mnt/var/cache/pacman/pkg
+mount -o subvol=@pc-cache \$ROOT /mnt/var/cache/pacman/pkg
+
+if [ -b \$SWAP ]; then
+  swapon \$SWAP
+fi
+
+mkdir -p /mnt/efi
+echo "Remember to mount EFI to /mnt/efi"
+EOF
+chmod +x /usr/bin/setupbtrfs
+
+parthelp
+echo "parthelp to repeat above message"
 zsh
 # ...
 # cryptsetup open "{DISK}2" cryptlvm
@@ -114,14 +155,14 @@ confirm "Are disks OK? (YES to continue) "  "YES"
 
 echo "Mounting..."
 if mountpoint -q /mnt; then
-  confirm "The root mountpoint (/mnt) is already mounted (YES to continue) " "YES"
+  confirm "The root mountpoint (/mnt) is already mounted (YES to continue and skip auto-mounting) " "YES"
 else
   mount $ROOT /mnt
-fi
-mkdir -p /mnt/boot
-mount "$EFI" /mnt/boot
-if [ "$SWAP" != "" ]; then
-  swapon $SWAP
+  mkdir -p /mnt/boot
+  mount "$EFI" /mnt/boot
+  if [ "$SWAP" != "" ]; then
+    swapon $SWAP
+  fi
 fi
 echo "Installing packages..."
 pacstrap /mnt base linux linux-firmware btrfs-progs base-devel
@@ -174,18 +215,18 @@ cr mkinitcpio -P
 
 echo "Setting up grub..."
 # Get root UUID
-PARTID=$(blkid -s PARTUUID -o value $ROOT)
+PARTID=$(blkid -s PARTUUID -o value $CRYPTODISK)
 # blkid of /dev/mapper/Volumes/root
 
 if [ "$SWAP" != "" ]; then
   ESCAPE_SWAP=$(echo "$SWAP" | sed 's/\//\\\//g')
-  sed -i "s/^\(GRUB_CMDLINE_LINUX_DEFAULT=\"[^\"]*\)$\"/\1 resume=$ESCAPE_SWAP\"/" /mnt/etc/default/grub
+  sed -i "s/^\(GRUB_CMDLINE_LINUX_DEFAULT=\"[^\"]*\)$\"/\1 resume=${ESCAPE_SWAP}\"/" /mnt/etc/default/grub
 fi
 
 ESCAPE_CRYPT=$(echo "$CRYPTDISK" | sed 's/\//\\\//g')
-sed -i "s/^\(GRUB_CMDLINE_LINUX=\"[^\"]*\)\"/\1 cryptdevice=PARTUUID=$PARTID:cryptlvm root=$ESCAPE_CRYPT\"/" /mnt/etc/default/grub
+sed -i "s/^\(GRUB_CMDLINE_LINUX=\"[^\"]*\)\"/\1cryptdevice=PARTUUID=${PARTID}:cryptlvm root=$ESCAPE_CRYPT\"/" /mnt/etc/default/grub
 sed -i 's/^\(GRUB_PRELOAD_MODULES="[^"]*\)"/\1 lvm"/' /mnt/etc/default/grub
-sed -i 's/^#\(GRUB_ENABLE_CRYPTODISK=i\).*/\1yes/' /mnt/etc/default/grub
+sed -i 's/^#\(GRUB_ENABLE_CRYPTODISK=\).*/\1y/' /mnt/etc/default/grub
 less /mnt/etc/default/grub
 read -p "Is grub default ok? (YES to continue, EDIT to edit) " check
 case $check in
@@ -212,7 +253,7 @@ fi
 EOF
 fi
 
-cr grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB $ROOT
+cr grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB $ROOT
 cr grub-mkconfig -o /boot/grub/grub.cfg
 
 echo "Set root password"
@@ -226,7 +267,7 @@ echo "Make any manual changes then exit"
 if cr bash; then
   echo "Setup done, thank you!"
 else
-  echo "WARNING: manual shell exited with error" 
+  echo "WARNING: manual shell exited with error"
 fi
 umount -R /mnt
 echo "Done, you should reboot the system"
