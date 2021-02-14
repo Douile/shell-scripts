@@ -4,6 +4,7 @@
 paru -S --needed xorg xorg-drivers xorg-xinit
 sudo X :0 -configure
 sudo mv /root/xorg.conf.new /etc/X11/xorg.conf
+sudo localectl set-x11-keymap gb
 
 # Install lightdm
 paru -S --needed lightdm lightdm-slick-greeter
@@ -12,7 +13,7 @@ paru -S --needed lightdm lightdm-slick-greeter
 paru -S --needed gnome-themes-extra ttf-opensans gnome-backgrounds papirus-icon-theme
 
 # Setup lightdm
-sudo sed 's/#greeter-session=.*/\0\ngreeter-session=lightdm-slick-greeter/' /etc/lightdm/lightdm.conf
+sudo sed -i 's/#greeter-session=.*/\0\ngreeter-session=lightdm-slick-greeter/' /etc/lightdm/lightdm.conf
 cat > /tmp/slick-greeter.conf << EOF
 [Greeter]
 draw-user-backgrounds=true
