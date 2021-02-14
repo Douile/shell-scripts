@@ -192,7 +192,13 @@ cr grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB-ar
 cr grub-mkconfig -o /boot/grub/grub.cfg
 
 echo "Set root password"
-cr passwd
+set +e
+exit_code="1"
+while [ $exit_code -ne 0 ]; do
+  cr passwd
+  exit_code=$?
+done
+
 echo "Setting up programs..."
 cr systemctl enable NetworkManager
 rm $mountpoint/bin/sh
