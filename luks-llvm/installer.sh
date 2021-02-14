@@ -83,9 +83,6 @@ mkdir -p "$mountpoint/var/log"
 mount -o subvol=@logs /dev/Volumes/root "$mountpoint/var/log"
 mkdir -p "$mountpoint/var/cache/pacman/pkg"
 mount -o subvol=@pc-cache /dev/Volumes/root "$mountpoint/var/cache/pacman/pkg"
-if [ -b /dev/Volumes/swap]; then
-  swapon /dev/Volumes/swap
-fi
 mkdir -p "$mountpoint/efi"
 mount "$EFI" "$mountpoint/efi"
 
@@ -93,6 +90,11 @@ echo "Installing packages..."
 pacstrap "$mountpoint" --noconfirm base linux-zen linux-lts linux-firmware btrfs-progs base-devel
 echo "Generating fstab..."
 genfstab -U "$mountpoint" >> $mountpoint/etc/fstab
+if [ -b /dev/Volumes/swap ]; then
+  SWAPID=$(blkid -s UUID -o value /dev/mapper/Volumes-swap)
+  echo -e "\n# /dev/mapper/Volumes-swap\nUUID=$SWAPID\tnone\tswap\tsw\t0\t0" >> $mountpoint/etc/fstab
+fi
+echo -e "\n# /tmp RAMDISK\nnone\t/tmp\ttmpfs\tdefaults\t0\t0" >> $mountpoint/etc/fstab
 less "$mountpoint/etc/fstab"
 confirm "Is fstab ok? (YES to continue) " "YES"
 
