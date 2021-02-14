@@ -6,6 +6,7 @@ Generic installers I use
 1. [luks-llvm](./luks-llvm)
 
 **Reboot into new system**
+
 2. [doas](./doas)
   - As root
   - Afterwards create user in "sudo" group
