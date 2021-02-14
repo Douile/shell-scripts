@@ -1,8 +1,10 @@
-# Generic installers I use
+Generic installers I use
 
 ## Order for new arch install
 **Boot arch iso**
+
 1. [luks-llvm](./luks-llvm)
+
 **Reboot into new system**
 2. [doas](./doas)
   - As root
