@@ -4,7 +4,6 @@
 paru -S --needed xorg xorg-drivers xorg-xinit
 sudo X :0 -configure
 sudo mv /root/xorg.conf.new /etc/X11/xorg.conf
-sudo localectl set-x11-keymap gb
 
 # Install lightdm
 paru -S --needed lightdm lightdm-slick-greeter
@@ -28,5 +27,7 @@ show-quit=true
 EOF
 sudo mv /tmp/slick-greeter.conf /etc/lightdm/slick-greeter.conf
 
+# Load GB keymap
+sudo localectl set-x11-keymap gb
 # Enable lightdm
 sudo systemctl enable --now lightdm

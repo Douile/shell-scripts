@@ -49,8 +49,20 @@ if [ ! -b $EFI ]; then
 fi
 
 echo "Seting up partitions..."
-cryptsetup luksFormat --type=luks1 "${ROOT}"
-cryptsetup open ${ROOT} cryptlvm
+
+set +e
+exit_code="1"
+while [ $exit_code -ne 0 ]; do
+  cryptsetup luksFormat --type=luks1 "${ROOT}"
+  exit_code=$?
+done
+exit_code="1"
+while [ $exit_code -ne 0 ]; do
+  cryptsetup open ${ROOT} cryptlvm
+  exit_code=$?
+done
+set -e
+
 pvcreate /dev/mapper/cryptlvm
 vgcreate Volumes /dev/mapper/cryptlvm
 if [ "$SWAP_SIZE" != "" ]; then
@@ -106,7 +118,13 @@ echo "Creating keyfile"
 mkdir -p "$mountpoint/root"
 dd bs=512 count=4 if=/dev/random of="$mountpoint/root/cryptlvm.keyfile" iflag=fullblock
 chmod 000 "$mountpoint/root/cryptlvm.keyfile"
-cr cryptsetup -v luksAddKey "${ROOT}" /root/cryptlvm.keyfile
+
+set +e
+exit_code="1"
+while [ $exit_code -ne 0 ]; do
+  cr cryptsetup -v luksAddKey "${ROOT}" /root/cryptlvm.keyfile
+  exit_code=$?
+done
 
 echo "Configuring time..."
 cr ln -sf /usr/share/zoneinfo/Europe/London /etc/localtime
@@ -128,7 +146,7 @@ cat << EOF >> $mountpoint/etc/hosts
 EOF
 
 echo "Installing packages..."
-cr pacman -S --needed --noconfirm grub lvm2 efibootmgr neovim htop man-db dash networkmanager pulseaudio pulseaudio-zeroconf
+cr pacman -S --needed --noconfirm grub lvm2 efibootmgr neovim htop man-db dash networkmanager pulseaudio pulseaudio-zeroconf xdg-user-dirs
 
 echo "Setting up initcpio..."
 
@@ -156,7 +174,7 @@ PARTID=$(blkid -s PARTUUID -o value $ROOT)
 # blkid of /dev/mapper/Volumes/root
 
 if [ -b /dev/Volumes/swap ]; then
-  sed -i "s/^\(GRUB_CMDLINE_LINUX_DEFAULT=\"[^\"]*\)$\"/\1 resume=\/dev\/Volumes\/swap\"/" "$mountpoint/etc/default/grub"
+  sed -i "s/^\(GRUB_CMDLINE_LINUX_DEFAULT=\"[^\"]*\)\"/\1 resume=\/dev\/Volumes\/swap\"/" "$mountpoint/etc/default/grub"
 fi
 
 sed -i "s/^\(GRUB_CMDLINE_LINUX=\"[^\"]*\)\"/\1cryptdevice=PARTUUID=${PARTID}:cryptlvm root=\/dev\/Volumes\/root cryptkey=rootfs:\/root\/cryptlvm.keyfile\"/" "$mountpoint/etc/default/grub"
@@ -192,12 +210,14 @@ cr grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB-ar
 cr grub-mkconfig -o /boot/grub/grub.cfg
 
 echo "Set root password"
+
 set +e
 exit_code="1"
 while [ $exit_code -ne 0 ]; do
   cr passwd
   exit_code=$?
 done
+set -e
 
 echo "Setting up programs..."
 cr systemctl enable NetworkManager
