@@ -11,7 +11,7 @@ git --work-tree="$HOME" --git-dir="$HOME/.dotfiles" checkout -f qtile
 paru -S --needed python python-pip 
 pip install Xlib psutil
 
-paru -S --needed redshift nitrogen picom network-manager-applet firefox pcmanfm pavucontrol peek alacritty ttf-roboto rofi exa starship bash-completion
+paru -S --needed redshift nitrogen picom network-manager-applet firefox pcmanfm pavucontrol peek alacritty ttf-roboto rofi exa starship bash-completion maim dunst dmenu
 
 # Configure lightdm
 if [ -f /etc/lightdm/lightdm.conf ]; then
